@@ -1,0 +1,133 @@
+---
+title: "Portfolio1"
+author: "Nanna Høgsholt"
+date: "2/3/2020"
+output: html_document
+---
+
+Load libraries 
+```{r}
+library(pacman);p_load(tidyverse, ggplot2, lme4)
+```
+
+Load data into RStudioe
+```{r}
+sleepdata <- read.csv("sleepstudy.csv", header = T)
+```
+
+###Task 1: Plot the data: 
+1.a: Get the data from one participant, e.g. using subset(). Make a linear regression for reaction time as a function of days of sleep deprivation, e.g. using lm(). Report the F-statistics.
+```{r}
+sleepdata_308 <- filter(sleepdata, Subject == 308)
+summary(lm(Reaction ~ Days, data = sleepdata_308))
+```
+
+A linear regression reveals a significant effect of sleep deprivation on reaction times for Subject 308, F(1,8) = 17.12, p = 0.0033.
+
+1.b: How many degrees of freedom does the relevant F-distribution have?
+
+Degrees of freedom: 1 & 8 
+
+
+1.c: At which F-value does a regression with this distribution become statistically significant (p<0.05)? 
+```{r}
+qf(0.95,1,8)
+```
+A regression with a similar distribution becomes statistically significant when F(1,8) = 5.32.  
+
+1.d: Make a plot of the F-distribution.
+```{r}
+nn<-seq(0,20,len=100)
+fdist<-df(nn,1,8)
+plot(nn,fdist, type='l',xlab='F value - df(1,8)',ylab='Density')
+
+cutoff = qf(0.95, 1,8)
+
+#plotting a vertical line at the cutoff
+lines(c(cutoff,cutoff),c(0,1),col='darkgreen')
+#Add explanation for the line
+text(cutoff+2,0.5,'p=0.05',col='darkgreen')
+#draw F-value as point on the curve
+points(17.12,df(17.12,1,8),col='red')
+```
+
+The plot visualizes one tail of the f distribution, the f-value at which the regression with df = 1 and 8 (red line) is significant and the relevant f-value (blue dot).
+
+###Task 2. For all participant in the experiment: 
+2.a: Find the coefficients (slope and intercept) for the regression for reaction time as a function of days of sleep deprivation (a hint for the solution: use group_by() in tidyverse or this function here:
+https://stat.ethz.ch/R-manual/R-devel/library/nlme/html/lmList.html, hint2: pool=FALSE)
+```{r}
+sleepdata$Subject <- as.factor(sleepdata$Subject)
+summary(lmList(Reaction~Days | Subject, data = sleepdata, pool=FALSE))
+
+
+```
+
+
+
+2.b: Combine both scatter plot and regression line in the same figure. You may also include all participants in one plot.
+
+```{r}
+ggplot(sleepdata, aes(x = sleepdata$Days, y = sleepdata$Reaction, color = Subject)) + geom_point() + geom_smooth(method = "lm", alpha = 0, fill = "Blue") + labs(x = "Days of sleep deprivation", y = "Reactiontime") + ggtitle("Plot 1")
+```
+
+```{r}
+ggplot(sleepdata, aes(x = sleepdata$Days, y = sleepdata$Reaction, color = Subject)) + geom_point() + geom_smooth(method = "lm", alpha = 0.1, fill = "Blue") + labs(x = "Days of sleep deprivation", y = "Reactiontime") + facet_wrap(~Subject) + ggtitle("Plot 2")
+```
+
+
+2.c: Collect and report the inferential statistics for each participant in a table using t-statistics, including t-value, df and p-value.
+
+```{r}
+df <- data.frame(sum1$coefficients)
+df %>% select(Estimate.Days, t.value.Days, Pr...t...Days)
+```
+
+From the table above, we see that only one participant (335) has a negative t-value, which was also evident in Plot 2, where the slope is negative. Moreover, it can be seen that the effect of sleep deprivation is diverse depending on the participant.
+
+```{r}
+sum1$df
+```
+
+
+
+2.d: How many individual participants display a statistically significant effect of sleep deprivation (p-values uncorrected for mulitple comparisons)?
+
+From the inferential statistics in table in 2.c we see that 13 participants’ p < .05 meaning that more than half of the participants experienced a statistically significant development in reaction times as an effect of sleep deprivation.
+
+
+
+####3. Across participants: 
+3.a: Use the slopes you found for each participant in exercise 2 as a new dataset. Test the hypothesis that the slopes are larger than zero against the null-hypothesis that the slopes are zero (i.e. no differences in response time exist as a function of time).
+
+```{r}
+df_coef <- data.frame(sum1$coefficients)
+t.test(df_coef$Estimate.Days)
+```
+
+A one sample t-test finds that the beta coefficients are significantly different from 0, t = 6.77, p < .001, M = 10.47. We therefore reject the null hypothesis that the slope is equal to zero, i.e. no development.
+
+3.b: Justify your use of test statistics.
+
+A one sample t-test allows us to compare a grand mean of the sample
+with a set value, which in this case is 0 as we test the null hypothesis that the mean beta coefficient is different from zero.
+
+
+3.c: Report inferential statistics.
+
+A one sample t-test finds that the beta coefficients are significantly different
+from 0, t = 6.77, p < .001, M = 10.47, 95% CI [7.21, 13.73], df = 17.
+
+3.d: Make a plot with the mean reaction time and standard error bars for each day across participants and plot the averaged regression line in the same figure.
+
+```{r}
+ggplot(sleepdata, aes(x = Days, y = Reaction)) + geom_point(stat='summary', fun.y=mean) +
+geom_errorbar(stat='summary', fun.data=mean_se, width = 0.7) + geom_smooth(method = "lm", alpha = 0, fill = "Blue") + ggtitle("Plot 3")
+```
+
+Plot 3 shows the general positive tendency of all 18 participants during the 10 days of the experiment. This suggests that sleep deprivation has an effect on mean reaction times.
+
+
+
+
+
